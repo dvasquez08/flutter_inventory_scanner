@@ -1,16 +1,10 @@
-# inventory_scanner
+# Flutter Inventory Scanner
 
 A new Flutter project.
 
-## Getting Started
+## How It Is Going to Work
 
-This project is a starting point for a Flutter application.
+This app is going to be integrated with a Firestore database. The main purpose of it will be to use a barcode scanning function to lookup items in an 
+inventory which is stored in Firestore, and if no item is found it will add it to the Firestore database.
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
