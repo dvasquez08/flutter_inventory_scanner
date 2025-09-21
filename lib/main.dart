@@ -11,7 +11,6 @@ class Product {
   final String barcode;
   final String name;
   final String description;
-  // --- FIX: Changed price from String to double ---
   final double price;
 
   Product({
@@ -28,7 +27,6 @@ class Product {
       barcode: doc.id,
       name: data['name'] ?? 'No Name',
       description: data['description'] ?? 'No Description',
-      // This now correctly assigns the double value from Firestore
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -42,10 +40,8 @@ class Product {
 // --- Main App Entry Point ---
 // Updated to initialize Firebase before running the app.
 Future<void> main() async {
-  // Ensure that Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
   // --- Initialize Firebase ---
-  // You must complete the Firebase setup for your platform.
   await Firebase.initializeApp();
   runApp(const BarcodeScannerApp());
 }
@@ -60,16 +56,13 @@ class BarcodeScannerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: const Color(0xFF0D47A1), // A deep, modern blue
-        scaffoldBackgroundColor: const Color(
-          0xFF121212,
-        ), // Standard dark theme bg
+        primaryColor: const Color(0xFF0D47A1),
+        scaffoldBackgroundColor: const Color(0xFF121212),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF42A5F5), // A vibrant blue for buttons/accents
+          primary: Color(0xFF42A5F5),
           secondary: Color(0xFF90CAF9),
-          surface: Color(0xFF1E1E1E), // For card backgrounds
+          surface: Color(0xFF1E1E1E),
         ),
-        // --- FIX: Used CardThemeData instead of CardTheme ---
         cardTheme: CardThemeData(
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -156,9 +149,7 @@ class _HomePageState extends State<HomePage> {
 
     if (docSnap.exists) {
       // If the document exists, create a Product object from its data.
-      // --- FIX: Removed unnecessary cast ---
       final product = Product.fromFirestore(docSnap);
-      // Navigate to the details page.
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProductDetailsPage(product: product),
@@ -178,7 +169,6 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Theme.of(context).cardTheme.color,
           shape: Theme.of(context).cardTheme.shape,
           title: const Text('Item Not Found'),
-          // --- FIX: Correctly displayed the barcode variable in the string ---
           content: Text(
             'The barcode "$barcode" is not in the database. Would you like to add it as a new item?',
           ),
@@ -192,7 +182,7 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton(
               child: const Text('Add Item'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => AddProductPage(barcode: barcode),
@@ -232,11 +222,7 @@ class _HomePageState extends State<HomePage> {
               Text(
                 'Press the button below to start scanning an item\'s barcode.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  // --- FIX: Used a non-deprecated way to set opacity ---
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 60),
               ElevatedButton.icon(
@@ -283,8 +269,8 @@ class ProductDetailsPage extends StatelessWidget {
             Container(
               height: 250,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
+                color: Colors.black,
                 image: const DecorationImage(
                   image: NetworkImage(
                     'https://placehold.co/600x400/1E1E1E/FFFFFF?text=Item+Image',
@@ -306,7 +292,7 @@ class ProductDetailsPage extends StatelessWidget {
               label: Text('Barcode: ${product.barcode}'),
               backgroundColor: Theme.of(
                 context,
-              ).colorScheme.primary.withOpacity(0.2),
+              ).colorScheme.primary.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -325,7 +311,6 @@ class ProductDetailsPage extends StatelessWidget {
               context,
               icon: Icons.attach_money_rounded,
               title: 'Price',
-              // --- FIX: This now works because product.price is a double ---
               content: '\$${product.price.toStringAsFixed(2)}',
               isPrice: true,
             ),
@@ -363,7 +348,6 @@ class ProductDetailsPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      // --- FIX: Used a non-deprecated way to set opacity ---
                       color: Colors.white70,
                     ),
                   ),
@@ -409,7 +393,6 @@ class _AddProductPageState extends State<AddProductPage> {
         barcode: widget.barcode,
         name: _nameController.text,
         description: _descriptionController.text,
-        // --- FIX: This now correctly assigns a double to the product's price ---
         price: double.tryParse(_priceController.text) ?? 0.0,
       );
 
@@ -467,11 +450,7 @@ class _AddProductPageState extends State<AddProductPage> {
             children: <Widget>[
               Text(
                 'Barcode: ${widget.barcode}',
-                style: TextStyle(
-                  fontSize: 16,
-                  // --- FIX: Used a non-deprecated way to set opacity ---
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 24),
               _buildTextFormField(
@@ -545,7 +524,6 @@ class _AddProductPageState extends State<AddProductPage> {
       controller: controller,
       decoration: InputDecoration(
         labelText: labelText,
-        // --- FIX: Used a non-deprecated way to set opacity ---
         prefixIcon: Icon(icon, color: Colors.white60),
       ),
       keyboardType: keyboardType,
