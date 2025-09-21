@@ -3,10 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+// --- UPDATED IMPORT: Switched to mobile_scanner ---
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 // --- Data Model ---
-// Updated to include methods for Firestore data conversion.
+// No changes needed here.
 class Product {
   final String barcode;
   final String name;
@@ -20,7 +21,6 @@ class Product {
     required this.price,
   });
 
-  // Factory constructor to create a Product from a Firestore document
   factory Product.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return Product(
@@ -31,17 +31,14 @@ class Product {
     );
   }
 
-  // Method to convert a Product instance to a Map for Firestore
   Map<String, dynamic> toFirestore() {
     return {'name': name, 'description': description, 'price': price};
   }
 }
 
 // --- Main App Entry Point ---
-// Updated to initialize Firebase before running the app.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // --- Initialize Firebase ---
   await Firebase.initializeApp();
   runApp(const BarcodeScannerApp());
 }
@@ -107,7 +104,7 @@ class BarcodeScannerApp extends StatelessWidget {
   }
 }
 
-// --- Home Page: The entry point with the scan button ---
+// --- REFACTORED Home Page: Uses a live camera view for scanning ---
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -116,53 +113,72 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<void> _scanBarcode() async {
-    String barcodeScanRes;
-    try {
-      // --- Use the actual barcode scanner plugin ---
-      barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
-        '#42A5F5',
-        'Cancel',
-        true,
-        ScanMode.BARCODE,
-      );
-      // If the user cancels, the result is '-1'.
-      if (barcodeScanRes == '-1') {
-        return;
-      }
-    } on PlatformException {
-      barcodeScanRes = 'Failed to get platform version.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to get camera access.')),
-      );
-      return;
+  final MobileScannerController _scannerController = MobileScannerController();
+  bool _isProcessing = false;
+  // --- FIX: Local state to manage UI for torch and camera ---
+  TorchState _torchState = TorchState.off;
+  CameraFacing _cameraFacing = CameraFacing.back;
+
+  // This function is now called when a barcode is detected by the camera.
+  Future<void> _onBarcodeDetected(BarcodeCapture capture) async {
+    // Prevent multiple simultaneous processing.
+    if (_isProcessing) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    final String? barcode = capture.barcodes.first.rawValue;
+    if (barcode == null) {
+      setState(() {
+        _isProcessing = false;
+      });
+      return; // No barcode detected.
     }
+
+    // --- Live Firestore Logic ---
+    final docRef = FirebaseFirestore.instance
+        .collection('products')
+        .doc(barcode);
+    final docSnap = await docRef.get();
 
     if (!mounted) return;
 
-    // --- Live Firestore Logic ---
-    // Get a reference to the Firestore document for the scanned barcode.
-    final docRef = FirebaseFirestore.instance
-        .collection('products')
-        .doc(barcodeScanRes);
-    final docSnap = await docRef.get();
-
     if (docSnap.exists) {
-      // If the document exists, create a Product object from its data.
       final product = Product.fromFirestore(docSnap);
-      Navigator.of(context).push(
+      // Temporarily pause the scanner and navigate to the details page.
+      await _scannerController.stop();
+      if (!mounted) return;
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProductDetailsPage(product: product),
         ),
       );
+      // Resume scanner when returning.
+      if (mounted) {
+        await _scannerController.start();
+      }
     } else {
-      // If not found, show a dialog asking to add it.
-      _showAddItemDialog(barcodeScanRes);
+      await _scannerController.stop();
+      if (!mounted) return;
+      await _showAddItemDialog(barcode);
+      if (mounted) {
+        await _scannerController.start();
+      }
     }
+
+    // Allow processing the next scan after a short delay.
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    });
   }
 
-  void _showAddItemDialog(String barcode) {
-    showDialog(
+  Future<void> _showAddItemDialog(String barcode) async {
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -175,14 +191,12 @@ class _HomePageState extends State<HomePage> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
               child: const Text('Add Item'),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close the dialog
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => AddProductPage(barcode: barcode),
@@ -199,48 +213,89 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventory Scanner')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Icon(
-                Icons.qr_code_scanner_rounded,
-                size: 120.0,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 40),
-              const Text(
-                'Ready to Scan',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Press the button below to start scanning an item\'s barcode.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-              const SizedBox(height: 60),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.camera_alt_rounded),
-                label: const Text('Scan Barcode'),
-                onPressed: _scanBarcode,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
+      appBar: AppBar(
+        title: const Text('Inventory Scanner'),
+        actions: [
+          // --- FIX: Replaced ValueListenableBuilder with standard IconButton ---
+          IconButton(
+            icon: Icon(
+              _torchState == TorchState.on
+                  ? Icons.flash_on_rounded
+                  : Icons.flash_off_rounded,
+              color: _torchState == TorchState.on ? Colors.yellow : Colors.grey,
+            ),
+            onPressed: () async {
+              await _scannerController.toggleTorch();
+              setState(() {
+                _torchState = _torchState == TorchState.off
+                    ? TorchState.on
+                    : TorchState.off;
+              });
+            },
+          ),
+          // --- FIX: Replaced ValueListenableBuilder with standard IconButton ---
+          IconButton(
+            icon: Icon(
+              _cameraFacing == CameraFacing.front
+                  ? Icons.camera_front_rounded
+                  : Icons.camera_rear_rounded,
+            ),
+            onPressed: () async {
+              await _scannerController.switchCamera();
+              setState(() {
+                _cameraFacing = _cameraFacing == CameraFacing.back
+                    ? CameraFacing.front
+                    : CameraFacing.back;
+              });
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _scannerController,
+            onDetect: _onBarcodeDetected,
+          ),
+          // --- UI Overlay ---
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+                Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _isProcessing ? Colors.orange : Colors.white,
+                      width: 4,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                Text(
+                  _isProcessing ? 'Processing...' : 'Point camera at a barcode',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    backgroundColor: Colors.black54,
+                    fontSize: 18,
+                  ),
+                ),
+                const Spacer(flex: 4),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    super.dispose();
   }
 }
 
@@ -265,12 +320,11 @@ class ProductDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Placeholder for an item image
             Container(
               height: 250,
               decoration: BoxDecoration(
+                color: Colors.black26,
                 borderRadius: BorderRadius.circular(16),
-                color: Colors.black,
                 image: const DecorationImage(
                   image: NetworkImage(
                     'https://placehold.co/600x400/1E1E1E/FFFFFF?text=Item+Image',
@@ -292,7 +346,7 @@ class ProductDetailsPage extends StatelessWidget {
               label: Text('Barcode: ${product.barcode}'),
               backgroundColor: Theme.of(
                 context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
+              ).colorScheme.primary.withAlpha(51),
               labelStyle: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -345,7 +399,7 @@ class ProductDetailsPage extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white70,
@@ -388,7 +442,6 @@ class _AddProductPageState extends State<AddProductPage> {
 
   Future<void> _saveItem() async {
     if (_formKey.currentState!.validate()) {
-      // Create a new Product instance from the form data.
       final newProduct = Product(
         barcode: widget.barcode,
         name: _nameController.text,
@@ -396,13 +449,13 @@ class _AddProductPageState extends State<AddProductPage> {
         price: double.tryParse(_priceController.text) ?? 0.0,
       );
 
-      // --- Live Firestore Logic ---
-      // Add the new product data to Firestore, using the barcode as the document ID.
       try {
         await FirebaseFirestore.instance
             .collection('products')
             .doc(widget.barcode)
             .set(newProduct.toFirestore());
+
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -410,9 +463,9 @@ class _AddProductPageState extends State<AddProductPage> {
             backgroundColor: Colors.green,
           ),
         );
-        // Pop back to the home screen.
         Navigator.of(context).pop();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to add item: $e'),
@@ -450,7 +503,7 @@ class _AddProductPageState extends State<AddProductPage> {
             children: <Widget>[
               Text(
                 'Barcode: ${widget.barcode}',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 24),
               _buildTextFormField(
