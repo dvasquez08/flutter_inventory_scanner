@@ -32,6 +32,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+android/build/
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +44,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase credentials
+/android/app/google-services.json
+/lib/firebase_options.dart
