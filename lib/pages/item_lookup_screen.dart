@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../components.dart';
@@ -64,6 +68,9 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (data['imageUrl'] != null)
+                Image.network(data['imageUrl'], height: 150),
+              SizedBox(height: 8),
               Text('Barcode: $barcode'),
               SizedBox(height: 8),
               Text('Name: ${data["name"]}'),
@@ -113,75 +120,139 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final priceController = TextEditingController();
+    File? selectedImage;
+
+    Future<void> _pickImage(ImageSource source) async {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          selectedImage = File(pickedFile.path);
+        });
+      }
+    }
+
+    Future<String?> _uploadImage(File imageFile, String barcode) async {
+      try {
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'item_images/$barcode.jpg',
+        );
+
+        // Upload the file to Firebase Storage
+        final uploadTask = await storageRef.putFile(imageFile);
+
+        // Get the public download URL
+        final downloadUrl = await storageRef.getDownloadURL();
+        return downloadUrl;
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
+        return null;
+      }
+    }
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Item'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Barcode: $scannedBarcode'),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Add Item'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Barcode: $scannedBarcode'),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Name'),
+                    ),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
+                    ),
+                    TextField(
+                      controller: priceController,
+                      decoration: const InputDecoration(labelText: 'Price'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    SizedBox(height: 10),
+                    if (selectedImage != null)
+                      Image.file(selectedImage!, height: 120),
+                    SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _pickImage(ImageSource.camera),
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text('Camera'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _pickImage(ImageSource.gallery),
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Gallery'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-                TextField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: 'Price'),
-                  keyboardType: TextInputType.number,
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    final description = descriptionController.text.trim();
+                    final price = priceController.text.trim();
+
+                    if (name.isEmpty ||
+                        description.isEmpty ||
+                        price.isEmpty ||
+                        selectedImage == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please fill in all fields'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final imageUrl = await _uploadImage(
+                      selectedImage!,
+                      scannedBarcode,
+                    );
+
+                    if (imageUrl != null) {
+                      await FirebaseFirestore.instance
+                          .collection('allItems')
+                          .doc(scannedBarcode)
+                          .set({
+                            'name': name,
+                            'description': description,
+                            'price': price,
+                            'imageUrl': imageUrl,
+                          });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Item added successfully'),
+                        ),
+                      );
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final description = descriptionController.text.trim();
-                final price = priceController.text.trim();
-
-                if (name.isEmpty || description.isEmpty || price.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill in all fields')),
-                  );
-                  return;
-                }
-
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('allItem')
-                      .doc(scannedBarcode)
-                      .set({
-                        'name': name,
-                        'description': description,
-                        'price': price,
-                      });
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Item added successfully')),
-                  );
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
