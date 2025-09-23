@@ -39,19 +39,27 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
   }
 
   Future<void> _lookupItem(String scannedBarcode) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('allItems')
           .doc(scannedBarcode)
           .get();
 
+      Navigator.pop(context); // Close loading spinner
+
       if (doc.exists) {
-        final data = doc.data()!;
-        _showItemDialog(scannedBarcode, data);
+        _showItemDialog(scannedBarcode, doc.data()!);
       } else {
         _showNotFoundDialog(scannedBarcode);
       }
     } catch (e) {
+      Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -64,19 +72,21 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Item Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (data['imageUrl'] != null)
-                Image.network(data['imageUrl'], height: 150),
-              SizedBox(height: 8),
-              Text('Barcode: $barcode'),
-              SizedBox(height: 8),
-              Text('Name: ${data["name"]}'),
-              Text('Description: ${data["description"]}'),
-              Text('Price: ${data["price"]}'),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data['imageUrl'] != null)
+                  Image.network(data['imageUrl'], height: 150),
+                SizedBox(height: 8),
+                Text('Barcode: $barcode'),
+                SizedBox(height: 8),
+                Text('Name: ${data["name"]}'),
+                Text('Description: ${data["description"]}'),
+                Text('Price: ${data["price"]}'),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -277,28 +287,30 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
       ),
 
       // ----- Main content of the item lookup screen -----
-      body: Container(
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(height: 170),
-            SansText('Check Inventory Item', 40.0),
-            SizedBox(height: 15),
-            SansText('Scan barcode to lookup item', 25.0),
-            SizedBox(height: 15),
-            ElevatedButton.icon(
-              onPressed: _openScanner,
-              icon: const Icon(Icons.barcode_reader),
-              label: const Text('Scan Barcode'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+      body: SingleChildScrollView(
+        child: Container(
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: 170),
+              SansText('Check Inventory Item', 40.0),
+              SizedBox(height: 15),
+              SansText('Scan barcode to lookup item', 25.0),
+              SizedBox(height: 15),
+              ElevatedButton.icon(
+                onPressed: _openScanner,
+                icon: const Icon(Icons.barcode_reader),
+                label: const Text('Scan Barcode'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
