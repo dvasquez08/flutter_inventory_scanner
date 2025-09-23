@@ -25,6 +25,7 @@ class AddItemScreen extends StatefulWidget {
 class _AddItemScreenState extends State<AddItemScreen> {
   String barcode = "";
 
+  // ----- Opens the barcode scanner and triggers the add item dialog when scanned
   Future<void> _openScanner() async {
     final result = await Navigator.push(
       context,
@@ -37,12 +38,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
     }
   }
 
+  // ----- Opens the dialog box that allows you to enter in the item details
   void _showAddItemDialog(String scannedBarcode) {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final priceController = TextEditingController();
     File? selectedImage;
 
+    // ----- Opens the camera or gallery to select/take a picture for the item. -----
     Future<void> _pickImage(ImageSource source) async {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source);
@@ -60,6 +63,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
       }
     }
 
+    // Uploads the selected image to Firebase Storage and returns its download URL.
     Future<String?> _uploadImage(File imageFile, String barcode) async {
       try {
         final storageRef = FirebaseStorage.instance.ref().child(
