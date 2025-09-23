@@ -46,10 +46,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
     Future<void> _pickImage(ImageSource source) async {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source);
+
       if (pickedFile != null) {
         setState(() {
           selectedImage = File(pickedFile.path);
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Image selected. It will upload on Save."),
+          ),
+        );
       }
     }
 
@@ -101,7 +108,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     ),
                     SizedBox(height: 10),
                     if (selectedImage != null)
-                      Image.file(selectedImage!, height: 120),
+                      Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          Image.file(selectedImage!, height: 120),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () =>
+                                setState(() => selectedImage = null),
+                          ),
+                        ],
+                      ),
                     SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -194,32 +211,34 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ),
 
       // ----- Main content of the screen -----
-      body: Container(
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(height: 170),
-            SansText('Add Item to Inventory', 40.0),
-            SizedBox(height: 15),
-            SansText('Scan barcode to add item to inventory', 25.0),
-            SizedBox(height: 15),
+      body: SingleChildScrollView(
+        child: Container(
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: 170),
+              SansText('Add Item to Inventory', 40.0),
+              SizedBox(height: 15),
+              SansText('Scan barcode to add item to inventory', 25.0),
+              SizedBox(height: 15),
 
-            if (barcode.isNotEmpty) SansText('Last scanned: $barcode', 20.0),
+              if (barcode.isNotEmpty) SansText('Last scanned: $barcode', 20.0),
 
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _openScanner,
-              icon: const Icon(Icons.barcode_reader),
-              label: const Text('Scan Barcode'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _openScanner,
+                icon: const Icon(Icons.barcode_reader),
+                label: const Text('Scan Barcode'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
