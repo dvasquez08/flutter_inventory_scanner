@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:inventory_scanner/components.dart';
 import 'package:inventory_scanner/pages/add_item_screen.dart';
+import 'package:inventory_scanner/pages/allItemsScreen.dart';
 import 'package:inventory_scanner/pages/item_lookup_screen.dart';
 
 // ----- Main entry point for this page -----
@@ -115,6 +116,22 @@ class _HomeState extends State<Home> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const ItemLookupScreen(),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 20),
+
+              // ----- Action Card for viewing all items -----
+              ActionCard(
+                title: 'View All Items',
+                subTitle: 'Browse all inventory items in one place',
+                icon: Icons.inventory_2_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AllItemsScreen(),
                     ),
                   );
                 },
