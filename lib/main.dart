@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:inventory_scanner/pages/Home.dart';
 
 Future<void> main() async {
@@ -14,18 +15,49 @@ class InventoryScanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const seedColor = Color(0xFF0D47A1);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Inventory Scanner',
       theme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: const Color(0xFF0D47A1),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF42A5F5),
-          secondary: Color(0xFF90CAF9),
-          surface: Color(0xFF1E1E1E),
+        // ----- This will be the main color for theme consistency -----
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.dark,
         ),
+        // ----- The default font for the entire app -----
+        textTheme: GoogleFonts.openSansTextTheme(ThemeData.dark().textTheme),
+        // ----- Style for all elevated buttons ------
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: seedColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        // ----- Style for all text form field decorations -----
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.black.withValues(alpha: 0.2),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: seedColor),
+          ),
+        ),
+        // ----- Style for the cards used on all pages -----
+        cardTheme: CardThemeData(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          clipBehavior: Clip.antiAlias,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF121212),
       ),
       home: const Home(),
     );
