@@ -9,6 +9,8 @@ class AllItemsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: SansText('All Items', 40.0), centerTitle: true),
+
+      // ----- Firebase logic that pulls all data from allItems collection in Firestore -----
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('allItems')
@@ -25,6 +27,7 @@ class AllItemsScreen extends StatelessWidget {
 
           final items = snapshot.data!.docs;
 
+          // ----- Setting up the grid view for all items -----
           return GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -38,6 +41,7 @@ class AllItemsScreen extends StatelessWidget {
               final data = items[index].data() as Map<String, dynamic>;
               final barcode = items[index].id;
 
+              // ----- Dynamic card configuration for each item -----
               return Card(
                 child: InkWell(
                   onTap: () {
@@ -46,6 +50,7 @@ class AllItemsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // ----- Showing the image of the item, using the image URL from Firebase -----
                       if (data['imageUrl'] != null)
                         Expanded(
                           child: Image.network(
@@ -54,6 +59,7 @@ class AllItemsScreen extends StatelessWidget {
                           ),
                         )
                       else
+                        // ----- If not image is found, show a placeholder -----
                         Expanded(
                           child: Container(
                             color: Colors.grey[800],
@@ -61,13 +67,14 @@ class AllItemsScreen extends StatelessWidget {
                             child: const Icon(Icons.image, size: 50),
                           ),
                         ),
+                      // ----- Item name, description and price -----
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              data['name'] ?? "Unamed",
+                              data['name'] ?? "Unnamed",
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -102,6 +109,7 @@ class AllItemsScreen extends StatelessWidget {
     );
   }
 
+  // ----- Dialog box that displays all of the selected item's details -----
   void _showItemDialog(
     BuildContext context,
     String barcode,
