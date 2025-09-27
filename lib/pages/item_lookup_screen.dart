@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 // Firebase Imports
@@ -7,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 // Flutter Imports
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 // Package Imports for image uploading and barcode scanning
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -87,12 +89,12 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
               children: [
                 if (data['imageUrl'] != null)
                   Image.network(data['imageUrl'], height: 150),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text('Barcode: $barcode'),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text('Name: ${data["name"]}'),
                 Text('Description: ${data["description"]}'),
-                Text('Price: ${data["price"]}'),
+                Text('Price: \$${data["price"]}'),
               ],
             ),
           ),
@@ -160,6 +162,19 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
                 }
               },
               child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+
+            // ----- Check eBay Button -----
+            TextButton(
+              onPressed: () {
+                _fetchEbayData(
+                  context,
+                  data['name'] ?? '',
+                  data['description'] ?? '',
+                  barcode,
+                );
+              },
+              child: const Text('Check eBay'),
             ),
 
             // ----- Close Dialog Box Button -----
@@ -361,6 +376,85 @@ class _ItemLookupScreenState extends State<ItemLookupScreen> {
         );
       },
     );
+  }
+
+  // ----- Function that fetches the item information from eBay -----
+  Future<void> _fetchEbayData(
+    BuildContext context,
+    String name,
+    String description,
+    String barcode,
+  ) async {
+    // Replace with your n8n webhook URL
+    const webhookUrl = 'https://your-n8n-instance/webhook/ebay-lookup';
+
+    try {
+      final response = await http.post(
+        Uri.parse(webhookUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          'description': description,
+          'barcode': barcode,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final results = jsonDecode(response.body);
+
+        // Show the results in a new dialog
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text("eBay Results"),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: results.isEmpty
+                    ? const Text("No results found.")
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: results.length,
+                        itemBuilder: (context, index) {
+                          final item = results[index];
+                          return Card(
+                            child: ListTile(
+                              leading: item['imageUrl'] != null
+                                  ? Image.network(
+                                      item['imageUrl'],
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : const Icon(Icons.image_not_supported),
+                              title: Text(item['title'] ?? 'No Title'),
+                              subtitle: Text("Price: \$${item['price']}"),
+                              onTap: () {
+                                // If n8n returns a link to the listing, open it
+                                if (item['url'] != null) {}
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        throw Exception("Failed to fetch eBay data");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error fetching eBay data: $e")));
+    }
   }
 
   void _showAddItemDialog(String scannedBarcode) {
